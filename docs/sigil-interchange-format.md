@@ -1,6 +1,6 @@
 # Sigil Interchange Format
 
-A JSON format for defining sigils with weighted preferences across contrasts.
+A JSON format for defining sigils with weighted preferences along contrasts.
 
 ## Schema
 
@@ -49,9 +49,27 @@ A JSON format for defining sigils with weighted preferences across contrasts.
 
 ## Field Definitions
 
+### contrast_weights
+
+Preferences along contrast dimensions. The weight encodes:
+- **Direction**: positive prefers one pole, negative prefers the other
+- **Strength**: magnitude indicates how much this contrast matters
+
+| Contrast | Negative Pole (-1) | Positive Pole (+1) |
+|----------|--------------------|--------------------|
+| abstraction | Representational | Abstract |
+| color_mode | Muted/desaturated | Vivid/saturated |
+| complexity | Simple/minimal | Complex/detailed |
+| setting | Natural/outdoor | Urban/indoor |
+| mood | Dark/moody | Bright/cheerful |
+| depth | Shallow DoF | Deep DoF |
+| motion | Static | Dynamic |
+
+Zero weight = neutral, this contrast doesn't influence collapse.
+
 ### category_weights
 
-Subject matter preferences. Positive weight = prefer, negative = avoid, zero = neutral.
+Subject matter preferences. Categories an observation might belong to.
 
 | Category | Description |
 |----------|-------------|
@@ -62,31 +80,25 @@ Subject matter preferences. Positive weight = prefer, negative = avoid, zero = n
 | architecture | Buildings, urban structures |
 | abstract | Non-representational imagery |
 
-### contrast_weights
-
-Aesthetic dimension preferences. Weight indicates direction and strength.
-
-| Contrast | Negative Pole | Positive Pole |
-|----------|---------------|---------------|
-| abstraction | Representational | Abstract |
-| color_mode | Muted/desaturated | Vivid/saturated |
-| complexity | Simple/minimal | Complex/detailed |
-| setting | Natural/outdoor | Urban/indoor |
-| mood | Dark/moody | Bright/cheerful |
-| depth | Shallow DoF | Deep DoF |
-| motion | Static | Dynamic |
+Positive = prefer, negative = avoid, zero = neutral.
 
 ### region_affinities
 
-Geographic preferences for location-tagged images. Empty array = no preference.
+Geographic preferences for location-tagged observations. Empty = no preference.
 
 ### calibration counts
 
 How many examples were used to calibrate each preference type. Higher = more confident weights.
 
-## Usage
+## How an Agent Uses This
 
-A sigil defined in this format can be loaded and used to score observations:
+An agent wearing this sigil:
+
+1. Attends to a frame of observations
+2. For each observation, perceives its position along each contrast
+3. Compares positions to sigil preferences
+4. Collapses: observations that align with preferences pass through
+5. Observations that pass become choices, enter the narrative
 
 ```python
 def load_sigil(path: Path) -> Sigil:
@@ -94,33 +106,28 @@ def load_sigil(path: Path) -> Sigil:
     return Sigil(
         contrast_weights=data["contrast_weights"],
         category_weights=data.get("category_weights", {}),
-        region_affinities=data.get("region_affinities", []),
     )
 
-# Score an observation
-score = sigil.score(observation)
-
-# Collapse frame to choices above threshold
-choices = [obs for obs in frame if sigil.score(obs) > 0.5]
+# Agent collapses frame using sigil preferences
+for obs in frame:
+    if agent.aligned(obs, sigil):
+        yield Choice(obs)
 ```
 
-## Scoring Algorithm
+## Collapse Criteria
 
-```
-total_score = 0
+For an observation to pass collapse:
 
-for each contrast in sigil.contrast_weights:
-    contrast_score = contrast.evaluate(observation)  # -1.0 to 1.0
-    weight = sigil.contrast_weights[contrast]
-    total_score += contrast_score * weight
+1. Determine observation's position on each contrast (-1.0 to +1.0)
+2. For each contrast, check alignment: does position match preference direction?
+3. Weight the alignments by preference strength
+4. If aggregate alignment exceeds threshold, observation passes
 
-for each category in sigil.category_weights:
-    if observation has category:
-        total_score += sigil.category_weights[category]
-
-normalize by number of weights applied
-```
+The threshold can be:
+- Fixed (e.g., 0.5)
+- Dynamic (top N observations)
+- Adaptive (based on attention budget)
 
 ## Versioning
 
-The `version` field is a hash identifying the calibration state. Changes to weights should update this hash to track sigil evolution.
+The `version` field is a hash identifying the calibration state. Changes to weights update this hash to track sigil evolution over time.

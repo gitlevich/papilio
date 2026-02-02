@@ -4,6 +4,14 @@ Naming and concepts follow the [Attention Language](https://sigilsnotspells.com)
 
 ## Core Concepts
 
+### Attention
+
+A finite resource. Can be spent on framerate (more observations) or resolution (deeper examination of each). These compete - you can scan quickly with low detail, or slowly with high detail.
+
+### Frame
+
+The current sensorium. What attention holds now. Has depth in time. In Papilio, the observations currently under attention before collapse.
+
 ### Observation
 
 What attention focuses on. In Papilio, an image with:
@@ -12,44 +20,30 @@ What attention focuses on. In Papilio, an image with:
 - Metadata accumulated through the pipeline
 - Sigil marks (which sigils it passed through)
 
-### Frame
-
-The current sensorium. All observations across all potential contrasts before any filtering. The full field of attention before collapse.
+An observation *has* a position along each contrast - it sits somewhere on each spectrum.
 
 ### Contrast
 
-A span between opposites. The basis for distinguishing observations.
+A span between opposites. A dimension that exists. Passive - it doesn't do anything.
 
 Examples:
 - Orientation: landscape ↔ portrait
-- Date range: in-range ↔ out-of-range
+- Date: in-range ↔ out-of-range
 - Color mode: muted ↔ vivid
 - Setting: natural ↔ urban
 - Complexity: simple ↔ complex
 
-A contrast can be:
-- **Binary**: pass/reject (current implementation)
-- **Continuous**: score from -1.0 to +1.0 (future)
+Observations have positions on contrasts. Sigils have preferences along contrasts. The contrast itself just *is*.
 
 ### Sigil
 
-A pattern plus preferences. When an observer wears a sigil, they become an agent.
+A pattern plus preferences. A labeled door. When worn by an observer, transforms them into an agent.
 
 A sigil embodies:
-- **Contrasts it's sensitive to**: which dimensions matter
-- **Preferences**: which side of each contrast is favored (weights)
+- **Preferences along contrasts**: direction and strength
 - **Transform**: how to modify observations that pass
 
-### Collapse
-
-The transformation of many possibilities into fewer. Applied when an agent evaluates observations through a sigil's contrasts.
-
-Binary collapse: observations either pass or don't.
-Weighted collapse: observations score against preferences, threshold determines passage.
-
-### Choice
-
-An observation that survived collapse. What remains after the sigil's contrasts are applied.
+The sigil doesn't act - it configures the agent who wears it.
 
 ### Observer
 
@@ -57,11 +51,28 @@ Watches without preference. Pure attention on the frame.
 
 ### Agent
 
-Observer wearing a sigil. The sigil's preferences guide collapse. Each choice enters the agent's narrative.
+Observer wearing a sigil. The active one.
+
+The agent:
+- Attends to frames (within attention budget)
+- Perceives observations along contrasts
+- Collapses each frame according to sigil preferences
+- Operates at a framerate and resolution (inversely proportional - same attention budget)
+
+### Collapse
+
+The transformation of many possibilities into fewer. The agent collapses each frame along all contrasts they can attend to, guided by the sigil's preferences.
+
+Binary collapse: observation passes or doesn't.
+Weighted collapse: preferences have direction and strength; observation must align sufficiently to pass.
+
+### Choice
+
+An observation that survived collapse. Enters the agent's narrative.
 
 ### Narrative
 
-History of choices. What happened as attention flowed through sigils. Currently represented as the `sigils` list on each observation - the marks left by sigils it passed through.
+History of choices. What happened as attention flowed through sigils. Currently represented as the `sigils` list on each observation.
 
 ## Current Implementation Mapping
 
@@ -69,60 +80,65 @@ History of choices. What happened as attention flowed through sigils. Currently 
 |---------|----------------|
 | Observation | `Observation` class |
 | Frame | Input stream to a sigil |
-| Contrast | `Sigil.filter()` method (binary) |
+| Contrast | Implicit in `Sigil.filter()` |
 | Sigil | `Sigil` class |
+| Observer | `Pipeline` (implicit) |
+| Agent | Pipeline executing a sigil |
 | Collapse | Filter operation |
 | Choice | Observation post-filter |
 | Transform | `Sigil.map()` method |
-| Observer | `Pipeline` (implicit) |
-| Agent | Pipeline executing a sigil |
 | Narrative | `observation.sigils` list |
 
-## Pipeline Flow
+## Pipeline as Agent
 
 ```
-Frame (all observations)
+Agent (Pipeline wearing Sigil)
     ↓
-Agent wearing Sigil
+Attends to Frame (input stream)
     ↓
-Collapse (apply contrasts)
+Perceives along Contrasts
     ↓
-Choices (observations that passed)
+Collapses (observations pass or don't)
     ↓
-Transform (apply preferences)
+Transforms (applies preferences)
     ↓
-Mark with sigil name
+Choices enter Narrative (sigil marks)
     ↓
-Next sigil...
+Next sigil (agent dons new sigil)
 ```
 
 ## Future Evolution
 
-### Weighted Contrasts
+### Weighted Preferences
 
-Move from binary filter to continuous scoring:
+Move from binary filter to weighted alignment:
 
 ```python
-class Contrast:
-    def score(self, obs: Observation) -> float:
-        """Score observation on this contrast. -1.0 to +1.0"""
-        ...
-
 class Sigil:
-    contrast_weights: dict[str, float]
+    contrast_preferences: dict[str, float]  # contrast name -> preference direction/strength
 
-    def score(self, obs: Observation) -> float:
-        """Aggregate score across weighted contrasts."""
-        return sum(
-            CONTRASTS[name].score(obs) * weight
-            for name, weight in self.contrast_weights.items()
-        )
+class Agent:
+    def collapse(self, frame: Frame) -> Iterator[Choice]:
+        """Collapse frame according to sigil preferences."""
+        for obs in frame:
+            if self.aligned(obs):
+                yield Choice(obs)
+
+    def aligned(self, obs: Observation) -> bool:
+        """Does observation align with sigil preferences across contrasts?"""
+        ...
 ```
 
-### Rich Narrative
+### Attention Budget
 
-Expand narrative to capture more than sigil names:
-- Timestamp of each choice
-- Scores at each sigil
-- Branch paths taken
-- Metadata evolution
+Model framerate vs resolution trade-off:
+
+```python
+class Agent:
+    attention_budget: float
+
+    def attend(self, frames: Iterator[Frame], framerate: float):
+        """Higher framerate = lower resolution per frame."""
+        resolution = self.attention_budget / framerate
+        ...
+```
