@@ -1,39 +1,41 @@
-"""Observation - what attention focuses on as it flows through the pipeline."""
+"""Observation - what attention focuses on."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Generic, TypeVar
 
-from PIL import Image
+T = TypeVar("T")
 
 
 @dataclass
-class Observation:
-    """An image under attention.
+class Observation(Generic[T]):
+    """What attention focuses on.
+
+    Generic over content type T. Content is lazy-loaded on first access.
 
     Attributes:
-        path: Original source path
+        path: Source path
+        loader: Loads content from path
         metadata: Accumulated annotations from sigils
         sigils: Marks left by sigils this observation passed through
     """
     path: Path
+    loader: Callable[[Path], T]
     metadata: dict[str, Any] = field(default_factory=dict)
     sigils: list[str] = field(default_factory=list)
-    _image: Image.Image | None = field(default=None, repr=False)
+    _content: T | None = field(default=None, repr=False)
 
     @property
-    def image(self) -> Image.Image:
-        """Lazy-load image data on first access."""
-        if self._image is None:
-            self._image = Image.open(self.path)
-        return self._image
+    def content(self) -> T:
+        """Lazy-load content on first access."""
+        if self._content is None:
+            self._content = self.loader(self.path)
+        return self._content
 
-    @image.setter
-    def image(self, value: Image.Image) -> None:
-        self._image = value
+    @content.setter
+    def content(self, value: T) -> None:
+        self._content = value
 
     def unload(self) -> None:
-        """Release image data from memory."""
-        if self._image is not None:
-            self._image.close()
-            self._image = None
+        """Release content from memory."""
+        self._content = None

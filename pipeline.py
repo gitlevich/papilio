@@ -2,21 +2,22 @@
 
 import logging
 from collections.abc import Iterator
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from observation import Observation
 from sigil import MergeSigil, Sigil
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", Observation, list[Observation])
+Obs = Observation[Any]
+T = TypeVar("T", Obs, list[Obs])
 
 
 class Pipeline:
     """Compose sigils into an executable flow.
 
     Observations flow through sigils sequentially.
-    Each sigil applies its contrast (filter) and transformation (map).
+    Each sigil collapses (filter) and transforms (map).
     """
 
     def __init__(self, sigils: list[Sigil | MergeSigil] | None = None):
@@ -27,7 +28,7 @@ class Pipeline:
         self.sigils.append(sigil)
         return self
 
-    def run(self, initial: Iterator[Observation] | None = None) -> Iterator[T]:
+    def run(self, initial: Iterator[Obs] | None = None) -> Iterator[T]:
         """Execute pipeline, yielding observations."""
         stream: Iterator[T] = initial or iter([])
 
@@ -71,7 +72,7 @@ class Branch:
     def __init__(self, branches: list[Pipeline]):
         self.branches = branches
 
-    def process(self, stream: Iterator[Observation]) -> list[Iterator[T]]:
+    def process(self, stream: Iterator[Obs]) -> list[Iterator[T]]:
         """Process stream through all branches."""
         observations = list(stream)
         return [branch.run(iter(observations)) for branch in self.branches]

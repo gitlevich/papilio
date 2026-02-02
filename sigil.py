@@ -1,20 +1,21 @@
-"""Sigil - pattern plus preferences for entanglement."""
+"""Sigil - pattern plus preferences."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from observation import Observation
 
-T = TypeVar("T", Observation, list[Observation])
+# Observation with any content type
+Obs = Observation[Any]
+T = TypeVar("T", Obs, list[Obs])
 
 
 class Sigil(ABC):
     """A pattern plus preferences.
 
-    A sigil names a concern and embodies two operations:
-    - filter(): apply a contrast - does this observation pass?
-    - map(): transform the observation
+    When worn by an observer, transforms them into an agent.
+    The agent collapses observations through the sigil's contrasts.
     """
 
     @property
@@ -22,15 +23,15 @@ class Sigil(ABC):
         """Sigil name recorded in observation's sigils list."""
         return self.__class__.__name__
 
-    def filter(self, obs: Observation) -> bool:
+    def filter(self, obs: Obs) -> bool:
         """Apply contrast: does this observation pass? Default: accept all."""
         return True
 
-    def map(self, obs: Observation) -> Observation:
+    def map(self, obs: Obs) -> Obs:
         """Transform the observation. Default: passthrough."""
         return obs
 
-    def process(self, stream: Iterator[Observation]) -> Iterator[Observation]:
+    def process(self, stream: Iterator[Obs]) -> Iterator[Obs]:
         """Apply filter then map, marking observation with this sigil."""
         for obs in stream:
             if self.filter(obs):
@@ -40,10 +41,10 @@ class Sigil(ABC):
 
 
 class MergeSigil(ABC):
-    """Sigil that combines multiple streams (fan-in).
+    """Sigil that collapses multiple streams into one.
 
     Implements merge() instead of filter/map.
-    Semantics: interleave, concatenate, window, join.
+    Semantics: batch, concatenate, interleave.
     """
 
     @property
@@ -52,5 +53,5 @@ class MergeSigil(ABC):
 
     @abstractmethod
     def merge(self, streams: list[Iterator[T]]) -> Iterator[T]:
-        """Combine multiple streams into one."""
+        """Collapse multiple streams into one."""
         ...

@@ -6,17 +6,16 @@ from pathlib import Path
 
 from PIL import Image
 
-from observation import Observation
 from pipeline import Pipeline
 from sigil import Sigil
-from sigils import Batch, Input, LandscapeOnly
+from sigils import Batch, ImageObservation, Input, LandscapeOnly
 
 
 class Grayscale(Sigil):
     """Transform: convert to grayscale."""
 
-    def map(self, obs: Observation) -> Observation:
-        obs.image = obs.image.convert("L")
+    def map(self, obs: ImageObservation) -> ImageObservation:
+        obs.content = obs.content.convert("L")
         obs.metadata["grayscale"] = True
         return obs
 
@@ -24,8 +23,8 @@ class Grayscale(Sigil):
 class AnnotateSize(Sigil):
     """Transform: record dimensions in metadata."""
 
-    def map(self, obs: Observation) -> Observation:
-        w, h = obs.image.size
+    def map(self, obs: ImageObservation) -> ImageObservation:
+        w, h = obs.content.size
         obs.metadata["width"] = w
         obs.metadata["height"] = h
         obs.metadata["aspect"] = "landscape" if w > h else "portrait" if h > w else "square"
@@ -129,7 +128,7 @@ def demo_transform_pipeline():
         results = list(pipeline.run())
         print(f"  Transformed: {len(results)} observations")
         for obs in results[:3]:
-            mode = obs.image.mode
+            mode = obs.content.mode
             print(f"    {obs.path.name}: mode={mode}, grayscale={obs.metadata.get('grayscale')}")
 
 
@@ -140,7 +139,7 @@ if __name__ == "__main__":
     demo_transform_pipeline()
 
     print("\n=== Attention Language ===")
-    print("- Observation: what attention focuses on")
+    print("- Observation[T]: what attention focuses on, generic over content")
     print("- Sigil: pattern + preferences (filter/map)")
     print("- Contrast: filter - pass or reject")
     print("- Collapse: many possibilities -> fewer (Batch)")

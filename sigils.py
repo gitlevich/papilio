@@ -1,4 +1,4 @@
-"""Built-in sigils."""
+"""Built-in sigils for image observations."""
 
 import logging
 from collections.abc import Iterator
@@ -14,11 +14,19 @@ from sigil import MergeSigil, Sigil
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar("T", Observation, list[Observation])
+# Type alias for image observations
+ImageObservation = Observation[Image.Image]
+
+T = TypeVar("T", ImageObservation, list[ImageObservation])
 
 IMAGE_EXTENSIONS = frozenset({
     ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".heif"
 })
+
+
+def load_image(path: Path) -> Image.Image:
+    """Load image from path."""
+    return Image.open(path)
 
 
 class Input(Sigil):
@@ -27,13 +35,13 @@ class Input(Sigil):
     def __init__(self, root: Path):
         self.root = root
 
-    def scan(self) -> Iterator[Observation]:
+    def scan(self) -> Iterator[ImageObservation]:
         """Walk directory, yield observations for recognized images."""
         for path in sorted(self.root.rglob("*")):
             if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS:
-                yield Observation(path=path)
+                yield Observation(path=path, loader=load_image)
 
-    def process(self, stream: Iterator[Observation]) -> Iterator[Observation]:
+    def process(self, stream: Iterator[ImageObservation]) -> Iterator[ImageObservation]:
         """Ignore incoming stream, generate from filesystem."""
         for _ in stream:
             pass
@@ -51,10 +59,10 @@ class Output(Sigil):
         self.output_root = output_root
         self.input_root = input_root
 
-    def map(self, obs: Observation) -> Observation:
+    def map(self, obs: ImageObservation) -> ImageObservation:
         """Resize if needed and write to output."""
         try:
-            img = obs.image
+            img = obs.content
             width, height = img.size
             long_edge = max(width, height)
 
@@ -62,7 +70,7 @@ class Output(Sigil):
                 scale = self.MAX_LONG_EDGE / long_edge
                 new_size = (int(width * scale), int(height * scale))
                 img = img.resize(new_size, Image.Resampling.LANCZOS)
-                obs.image = img
+                obs.content = img
                 obs.metadata["resized"] = True
                 obs.metadata["original_size"] = (width, height)
             else:
@@ -86,9 +94,9 @@ class Output(Sigil):
 class LandscapeOnly(Sigil):
     """Contrast: landscape vs portrait. Passes width > height."""
 
-    def filter(self, obs: Observation) -> bool:
+    def filter(self, obs: ImageObservation) -> bool:
         try:
-            width, height = obs.image.size
+            width, height = obs.content.size
             return width > height
         except Exception as e:
             logger.warning("Failed to check orientation for %s: %s", obs.path, e)
@@ -104,10 +112,10 @@ class DateRange(Sigil):
         self.start = start
         self.end = end
 
-    def _get_date_taken(self, obs: Observation) -> datetime | None:
+    def _get_date_taken(self, obs: ImageObservation) -> datetime | None:
         """Extract DateTimeOriginal from EXIF."""
         try:
-            img = obs.image
+            img = obs.content
             exif = img.getexif()
             if not exif:
                 return None
@@ -125,7 +133,7 @@ class DateRange(Sigil):
             logger.warning("Failed to read EXIF date for %s: %s", obs.path, e)
             return None
 
-    def filter(self, obs: Observation) -> bool:
+    def filter(self, obs: ImageObservation) -> bool:
         date_taken = self._get_date_taken(obs)
         if date_taken is None:
             logger.warning("No EXIF date for %s, skipping", obs.path)
@@ -147,9 +155,9 @@ class Batch(MergeSigil):
     def __init__(self, n: int = 10):
         self.n = n
 
-    def merge(self, streams: list[Iterator[T]]) -> Iterator[list[Observation]]:
+    def merge(self, streams: list[Iterator[T]]) -> Iterator[list[ImageObservation]]:
         """Collect observations into batches of size n."""
-        batch: list[Observation] = []
+        batch: list[ImageObservation] = []
 
         for stream in streams:
             for item in stream:

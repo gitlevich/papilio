@@ -9,6 +9,10 @@ from PIL import Image
 from observation import Observation
 
 
+def load_image(path: Path) -> Image.Image:
+    return Image.open(path)
+
+
 @pytest.fixture
 def sample_image_path():
     """Create a temporary test image."""
@@ -19,34 +23,48 @@ def sample_image_path():
 
 
 def test_observation_creation(sample_image_path):
-    obs = Observation(path=sample_image_path)
+    obs = Observation(path=sample_image_path, loader=load_image)
     assert obs.path == sample_image_path
     assert obs.metadata == {}
     assert obs.sigils == []
 
 
-def test_lazy_image_loading(sample_image_path):
-    obs = Observation(path=sample_image_path)
-    assert obs._image is None
+def test_lazy_content_loading(sample_image_path):
+    obs = Observation(path=sample_image_path, loader=load_image)
+    assert obs._content is None
 
-    img = obs.image
-    assert img is not None
-    assert img.size == (100, 50)
-    assert obs._image is not None
+    content = obs.content
+    assert content is not None
+    assert content.size == (100, 50)
+    assert obs._content is not None
 
 
-def test_image_setter(sample_image_path):
-    obs = Observation(path=sample_image_path)
+def test_content_setter(sample_image_path):
+    obs = Observation(path=sample_image_path, loader=load_image)
     new_img = Image.new("RGB", (200, 100), color="blue")
-    obs.image = new_img
+    obs.content = new_img
 
-    assert obs.image.size == (200, 100)
+    assert obs.content.size == (200, 100)
 
 
 def test_unload(sample_image_path):
-    obs = Observation(path=sample_image_path)
-    _ = obs.image  # Force load
-    assert obs._image is not None
+    obs = Observation(path=sample_image_path, loader=load_image)
+    _ = obs.content  # Force load
+    assert obs._content is not None
 
     obs.unload()
-    assert obs._image is None
+    assert obs._content is None
+
+
+def test_generic_observation():
+    """Test that Observation works with any content type."""
+    def load_text(path: Path) -> str:
+        return path.read_text()
+
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False, mode="w") as f:
+        f.write("hello world")
+        f.flush()
+        path = Path(f.name)
+
+    obs: Observation[str] = Observation(path=path, loader=load_text)
+    assert obs.content == "hello world"

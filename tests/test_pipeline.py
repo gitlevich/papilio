@@ -7,6 +7,14 @@ from pipeline import Branch, Pipeline
 from sigil import Sigil
 
 
+def identity_loader(path: Path) -> None:
+    return None
+
+
+def make_obs(path: str, **metadata) -> Observation:
+    return Observation(path=Path(path), loader=identity_loader, metadata=metadata)
+
+
 class AddTagSigil(Sigil):
     """Sigil that adds a tag to metadata."""
 
@@ -34,7 +42,7 @@ def test_empty_pipeline():
 
 def test_single_sigil():
     pipeline = Pipeline([AddTagSigil("test")])
-    observations = [Observation(path=Path("/1.jpg"))]
+    observations = [make_obs("/1.jpg")]
 
     results = list(pipeline.run(iter(observations)))
 
@@ -47,7 +55,7 @@ def test_chained_sigils():
     pipeline.add(AddTagSigil("first"))
     pipeline.add(AddTagSigil("second"))
 
-    observations = [Observation(path=Path("/1.jpg"))]
+    observations = [make_obs("/1.jpg")]
     results = list(pipeline.run(iter(observations)))
 
     assert results[0].metadata["tags"] == ["first", "second"]
@@ -59,7 +67,7 @@ def test_contrast_in_chain():
     pipeline.add(RejectAllSigil())
     pipeline.add(AddTagSigil("after"))
 
-    observations = [Observation(path=Path("/1.jpg"))]
+    observations = [make_obs("/1.jpg")]
     results = list(pipeline.run(iter(observations)))
 
     assert results == []
@@ -79,7 +87,7 @@ def test_fluent_api():
         .add(AddTagSigil("c"))
     )
 
-    observations = [Observation(path=Path("/1.jpg"))]
+    observations = [make_obs("/1.jpg")]
     results = list(pipeline.run(iter(observations)))
 
     assert results[0].metadata["tags"] == ["a", "b", "c"]
@@ -91,7 +99,7 @@ class TestBranch:
         branch2 = Pipeline([AddTagSigil("branch2")])
 
         branch = Branch([branch1, branch2])
-        observations = [Observation(path=Path("/1.jpg"))]
+        observations = [make_obs("/1.jpg")]
 
         streams = branch.process(iter(observations))
 

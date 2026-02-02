@@ -6,6 +6,14 @@ from observation import Observation
 from sigil import Sigil
 
 
+def identity_loader(path: Path) -> None:
+    return None
+
+
+def make_obs(path: str, **metadata) -> Observation:
+    return Observation(path=Path(path), loader=identity_loader, metadata=metadata)
+
+
 class PassthroughSigil(Sigil):
     """Test sigil that accepts all observations unchanged."""
     pass
@@ -33,20 +41,20 @@ def test_sigil_default_name():
 
 def test_sigil_default_filter_accepts_all():
     sigil = PassthroughSigil()
-    obs = Observation(path=Path("/fake/path.jpg"))
+    obs = make_obs("/fake/path.jpg")
     assert sigil.filter(obs) is True
 
 
 def test_sigil_default_map_passthrough():
     sigil = PassthroughSigil()
-    obs = Observation(path=Path("/fake/path.jpg"))
+    obs = make_obs("/fake/path.jpg")
     result = sigil.map(obs)
     assert result is obs
 
 
 def test_sigil_process_adds_mark():
     sigil = PassthroughSigil()
-    observations = [Observation(path=Path("/fake/1.jpg"))]
+    observations = [make_obs("/fake/1.jpg")]
 
     results = list(sigil.process(iter(observations)))
 
@@ -57,10 +65,10 @@ def test_sigil_process_adds_mark():
 def test_contrast_sigil():
     sigil = EvenOnlySigil()
     observations = [
-        Observation(path=Path("/1.jpg"), metadata={"value": 1}),
-        Observation(path=Path("/2.jpg"), metadata={"value": 2}),
-        Observation(path=Path("/3.jpg"), metadata={"value": 3}),
-        Observation(path=Path("/4.jpg"), metadata={"value": 4}),
+        make_obs("/1.jpg", value=1),
+        make_obs("/2.jpg", value=2),
+        make_obs("/3.jpg", value=3),
+        make_obs("/4.jpg", value=4),
     ]
 
     results = list(sigil.process(iter(observations)))
@@ -71,7 +79,7 @@ def test_contrast_sigil():
 
 def test_transform_sigil():
     sigil = DoubleValueSigil()
-    obs = Observation(path=Path("/1.jpg"), metadata={"value": 5})
+    obs = make_obs("/1.jpg", value=5)
 
     results = list(sigil.process(iter([obs])))
 

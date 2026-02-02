@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from observation import Observation
-from sigils import Batch, Concat, Input, LandscapeOnly, Output
+from sigils import Batch, Concat, Input, LandscapeOnly, Output, load_image
 
 
 @pytest.fixture
@@ -57,26 +57,29 @@ class TestInput:
 class TestLandscapeOnly:
     def test_passes_landscape(self, temp_dir):
         sigil = LandscapeOnly()
-        obs = Observation(path=temp_dir / "landscape.jpg")
+        obs = Observation(path=temp_dir / "landscape.jpg", loader=load_image)
 
         assert sigil.filter(obs) is True
 
     def test_rejects_portrait(self, temp_dir):
         sigil = LandscapeOnly()
-        obs = Observation(path=temp_dir / "portrait.png")
+        obs = Observation(path=temp_dir / "portrait.png", loader=load_image)
 
         assert sigil.filter(obs) is False
 
     def test_rejects_square(self, temp_dir):
         sigil = LandscapeOnly()
-        obs = Observation(path=temp_dir / "subdir" / "square.tiff")
+        obs = Observation(path=temp_dir / "subdir" / "square.tiff", loader=load_image)
 
         assert sigil.filter(obs) is False
 
 
 class TestBatch:
-    def test_batches_observations(self):
-        observations = [Observation(path=Path(f"/{i}.jpg")) for i in range(25)]
+    def test_batches_observations(self, temp_dir):
+        observations = [
+            Observation(path=Path(f"/{i}.jpg"), loader=load_image)
+            for i in range(25)
+        ]
         sigil = Batch(n=10)
 
         batches = list(sigil.merge([iter(observations)]))
@@ -86,8 +89,11 @@ class TestBatch:
         assert len(batches[1]) == 10
         assert len(batches[2]) == 5
 
-    def test_adds_sigil_mark_to_batch(self):
-        observations = [Observation(path=Path(f"/{i}.jpg")) for i in range(3)]
+    def test_adds_sigil_mark_to_batch(self, temp_dir):
+        observations = [
+            Observation(path=Path(f"/{i}.jpg"), loader=load_image)
+            for i in range(3)
+        ]
         sigil = Batch(n=2)
 
         batches = list(sigil.merge([iter(observations)]))
@@ -97,8 +103,11 @@ class TestBatch:
 
 class TestConcat:
     def test_concatenates_streams(self):
-        stream1 = iter([Observation(path=Path("/a.jpg"))])
-        stream2 = iter([Observation(path=Path("/b.jpg")), Observation(path=Path("/c.jpg"))])
+        stream1 = iter([Observation(path=Path("/a.jpg"), loader=load_image)])
+        stream2 = iter([
+            Observation(path=Path("/b.jpg"), loader=load_image),
+            Observation(path=Path("/c.jpg"), loader=load_image),
+        ])
 
         sigil = Concat()
         results = list(sigil.merge([stream1, stream2]))
@@ -111,7 +120,7 @@ class TestOutput:
     def test_preserves_small_images(self, temp_dir):
         output_dir = temp_dir / "output"
         sigil = Output(output_dir, temp_dir)
-        obs = Observation(path=temp_dir / "landscape.jpg")
+        obs = Observation(path=temp_dir / "landscape.jpg", loader=load_image)
 
         result = sigil.map(obs)
 
@@ -124,7 +133,7 @@ class TestOutput:
 
         output_dir = temp_dir / "output"
         sigil = Output(output_dir, temp_dir)
-        obs = Observation(path=temp_dir / "large.jpg")
+        obs = Observation(path=temp_dir / "large.jpg", loader=load_image)
 
         result = sigil.map(obs)
 
@@ -137,7 +146,7 @@ class TestOutput:
     def test_preserves_directory_structure(self, temp_dir):
         output_dir = temp_dir / "output"
         sigil = Output(output_dir, temp_dir)
-        obs = Observation(path=temp_dir / "subdir" / "square.tiff")
+        obs = Observation(path=temp_dir / "subdir" / "square.tiff", loader=load_image)
 
         sigil.map(obs)
 
