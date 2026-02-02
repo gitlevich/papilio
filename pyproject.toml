@@ -17,4 +17,4 @@ dev = [
 ingest = "ingest:main"
 
 [tool.setuptools]
-py-modules = ["observation", "stage", "stages", "pipeline", "ingest"]
+py-modules = ["observation", "sigil", "sigils", "pipeline", "ingest"]

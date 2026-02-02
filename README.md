@@ -6,6 +6,8 @@
 
 A streaming photo pipeline. Observations flow through composable sigils that apply contrasts and transformations.
 
+Naming inspired by the [Attention Language](https://sigilsnotspells.com).
+
 ## Install
 
 ```bash
@@ -21,7 +23,7 @@ pip install -e .
 ingest --input ./photos --output ./processed
 
 # Pass only landscape orientation (width > height)
-ingest --input ./photos --output ./processed --stages landscape
+ingest --input ./photos --output ./processed --sigils landscape
 
 # Pass only images within date range
 ingest --input ./photos --output ./processed --date-start 2025-02-01 --date-end 2025-02-28
@@ -29,37 +31,36 @@ ingest --input ./photos --output ./processed --date-start 2025-02-01 --date-end 
 
 ## Architecture
 
-Naming follows the [Attention Language](https://sigilsnotspells.com) framework.
-
 **Observation** - What attention focuses on. An image with path, lazy-loaded data, metadata, and sigil marks.
 
-**Stage (Sigil)** - A pattern plus preferences. Each stage implements:
+**Sigil** - A pattern plus preferences. Each sigil implements:
+
 - `filter(obs) -> bool` — apply a contrast: does this observation pass?
 - `map(obs) -> obs` — transform the observation
 
-**MergeStage** - Fan-in combining multiple streams (batch, concat, interleave).
+**MergeSigil** - Collapse multiple streams into one (batch, concat, interleave).
 
-**Pipeline** - Composes stages. Observations flow through as generators for memory efficiency.
+**Pipeline** - Composes sigils. Observations flow through as generators.
 
-## Built-in Stages
+## Built-in Sigils
 
-| Stage | Type | Description |
-|-------|------|-------------|
-| `InputStage` | Source | Recursively walks directory for images |
-| `OutputStage` | Sink | Resizes to 4K if larger, writes preserving structure |
-| `DateFilter` | Contrast | In-range vs out-of-range by EXIF date |
+| Sigil | Type | Description |
+| ----- | ---- | ----------- |
+| `Input` | Source | Recursively walks directory for images |
+| `Output` | Sink | Resizes to 4K if larger, writes preserving structure |
+| `DateRange` | Contrast | In-range vs out-of-range by EXIF date |
 | `LandscapeOnly` | Contrast | Landscape vs portrait orientation |
-| `BatchMerge` | Merge | Windows observations into groups of N |
+| `Batch` | Collapse | Windows observations into groups of N |
 | `Concat` | Merge | Concatenates streams sequentially |
 | `Interleave` | Merge | Round-robin from multiple streams |
 
 ## Extending
 
 ```python
-from stage import Stage
+from sigil import Sigil
 from observation import Observation
 
-class Grayscale(Stage):
+class Grayscale(Sigil):
     """Transform: convert to grayscale."""
 
     def map(self, obs: Observation) -> Observation:
@@ -68,8 +69,9 @@ class Grayscale(Stage):
 ```
 
 Register in `ingest.py`:
+
 ```python
-AVAILABLE_STAGES["grayscale"] = Grayscale
+AVAILABLE_SIGILS["grayscale"] = Grayscale
 ```
 
 ## Supported Formats

@@ -1,4 +1,4 @@
-"""Stage abstractions - the pipeline's building blocks."""
+"""Sigil - pattern plus preferences for entanglement."""
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
@@ -9,16 +9,17 @@ from observation import Observation
 T = TypeVar("T", Observation, list[Observation])
 
 
-class Stage(ABC):
-    """A sigil - names a concern, embodies filter and map.
+class Sigil(ABC):
+    """A pattern plus preferences.
 
-    Subclasses implement filter() and map() to define behavior.
-    The pipeline handles stream mechanics.
+    A sigil names a concern and embodies two operations:
+    - filter(): apply a contrast - does this observation pass?
+    - map(): transform the observation
     """
 
     @property
     def name(self) -> str:
-        """Stage name used in sigils list."""
+        """Sigil name recorded in observation's sigils list."""
         return self.__class__.__name__
 
     def filter(self, obs: Observation) -> bool:
@@ -30,7 +31,7 @@ class Stage(ABC):
         return obs
 
     def process(self, stream: Iterator[Observation]) -> Iterator[Observation]:
-        """Apply filter then map to stream, marking with sigil."""
+        """Apply filter then map, marking observation with this sigil."""
         for obs in stream:
             if self.filter(obs):
                 result = self.map(obs)
@@ -38,11 +39,11 @@ class Stage(ABC):
                 yield result
 
 
-class MergeStage(ABC):
-    """Fan-in stage that combines multiple input streams.
+class MergeSigil(ABC):
+    """Sigil that combines multiple streams (fan-in).
 
-    Subclasses implement merge() to define combination semantics:
-    interleave, concatenate, window, join, etc.
+    Implements merge() instead of filter/map.
+    Semantics: interleave, concatenate, window, join.
     """
 
     @property

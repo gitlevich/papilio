@@ -4,11 +4,11 @@ from pathlib import Path
 
 from observation import Observation
 from pipeline import Branch, Pipeline
-from stage import Stage
+from sigil import Sigil
 
 
-class AddTagStage(Stage):
-    """Stage that adds a tag to metadata."""
+class AddTagSigil(Sigil):
+    """Sigil that adds a tag to metadata."""
 
     def __init__(self, tag: str):
         self.tag = tag
@@ -19,8 +19,8 @@ class AddTagStage(Stage):
         return obs
 
 
-class RejectAllStage(Stage):
-    """Stage that rejects all observations."""
+class RejectAllSigil(Sigil):
+    """Sigil that rejects all observations."""
 
     def filter(self, obs: Observation) -> bool:
         return False
@@ -32,8 +32,8 @@ def test_empty_pipeline():
     assert results == []
 
 
-def test_single_stage():
-    pipeline = Pipeline([AddTagStage("test")])
+def test_single_sigil():
+    pipeline = Pipeline([AddTagSigil("test")])
     observations = [Observation(path=Path("/1.jpg"))]
 
     results = list(pipeline.run(iter(observations)))
@@ -42,10 +42,10 @@ def test_single_stage():
     assert "test" in results[0].metadata["tags"]
 
 
-def test_chained_stages():
+def test_chained_sigils():
     pipeline = Pipeline()
-    pipeline.add(AddTagStage("first"))
-    pipeline.add(AddTagStage("second"))
+    pipeline.add(AddTagSigil("first"))
+    pipeline.add(AddTagSigil("second"))
 
     observations = [Observation(path=Path("/1.jpg"))]
     results = list(pipeline.run(iter(observations)))
@@ -53,11 +53,11 @@ def test_chained_stages():
     assert results[0].metadata["tags"] == ["first", "second"]
 
 
-def test_filter_in_chain():
+def test_contrast_in_chain():
     pipeline = Pipeline()
-    pipeline.add(AddTagStage("before"))
-    pipeline.add(RejectAllStage())
-    pipeline.add(AddTagStage("after"))
+    pipeline.add(AddTagSigil("before"))
+    pipeline.add(RejectAllSigil())
+    pipeline.add(AddTagSigil("after"))
 
     observations = [Observation(path=Path("/1.jpg"))]
     results = list(pipeline.run(iter(observations)))
@@ -67,16 +67,16 @@ def test_filter_in_chain():
 
 def test_pipeline_add_returns_self():
     pipeline = Pipeline()
-    result = pipeline.add(AddTagStage("test"))
+    result = pipeline.add(AddTagSigil("test"))
     assert result is pipeline
 
 
 def test_fluent_api():
     pipeline = (
         Pipeline()
-        .add(AddTagStage("a"))
-        .add(AddTagStage("b"))
-        .add(AddTagStage("c"))
+        .add(AddTagSigil("a"))
+        .add(AddTagSigil("b"))
+        .add(AddTagSigil("c"))
     )
 
     observations = [Observation(path=Path("/1.jpg"))]
@@ -87,8 +87,8 @@ def test_fluent_api():
 
 class TestBranch:
     def test_branch_creates_multiple_streams(self):
-        branch1 = Pipeline([AddTagStage("branch1")])
-        branch2 = Pipeline([AddTagStage("branch2")])
+        branch1 = Pipeline([AddTagSigil("branch1")])
+        branch2 = Pipeline([AddTagSigil("branch2")])
 
         branch = Branch([branch1, branch2])
         observations = [Observation(path=Path("/1.jpg"))]

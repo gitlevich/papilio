@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI for photo ingestion pipeline."""
+"""CLI for photo pipeline."""
 
 import argparse
 import logging
@@ -9,21 +9,19 @@ from pathlib import Path
 import pillow_heif
 
 from pipeline import Pipeline
-from stages import (
-    BatchMerge,
-    DateFilter,
-    InputStage,
+from sigils import (
+    Batch,
+    DateRange,
+    Input,
     LandscapeOnly,
-    OutputStage,
+    Output,
 )
 
-# Register HEIF/HEIC support with Pillow
 pillow_heif.register_heif_opener()
 
-# Stage registry for CLI access
-AVAILABLE_STAGES = {
+AVAILABLE_SIGILS = {
     "landscape": LandscapeOnly,
-    "batch": BatchMerge,
+    "batch": Batch,
 }
 
 logging.basicConfig(
@@ -41,39 +39,38 @@ def parse_date(value: str) -> datetime:
 def build_pipeline(
     input_dir: Path,
     output_dir: Path,
-    stage_names: list[str],
+    sigil_names: list[str],
     date_start: datetime | None = None,
     date_end: datetime | None = None,
 ) -> Pipeline:
-    """Construct pipeline from stage names."""
+    """Construct pipeline from sigil names."""
     pipeline = Pipeline()
-    pipeline.add(InputStage(input_dir))
+    pipeline.add(Input(input_dir))
 
-    # Add date filter if specified
     if date_start or date_end:
-        pipeline.add(DateFilter(start=date_start, end=date_end))
+        pipeline.add(DateRange(start=date_start, end=date_end))
 
-    for name in stage_names:
-        if name not in AVAILABLE_STAGES:
-            logger.warning("Unknown stage: %s, skipping", name)
+    for name in sigil_names:
+        if name not in AVAILABLE_SIGILS:
+            logger.warning("Unknown sigil: %s, skipping", name)
             continue
-        stage_class = AVAILABLE_STAGES[name]
-        pipeline.add(stage_class())
+        sigil_class = AVAILABLE_SIGILS[name]
+        pipeline.add(sigil_class())
 
-    pipeline.add(OutputStage(output_dir, input_dir))
+    pipeline.add(Output(output_dir, input_dir))
     return pipeline
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Photo ingestion pipeline")
+    parser = argparse.ArgumentParser(description="Photo pipeline")
     parser.add_argument("--input", "-i", type=Path, required=True, help="Input directory")
     parser.add_argument("--output", "-o", type=Path, required=True, help="Output directory")
     parser.add_argument(
-        "--stages",
+        "--sigils",
         "-s",
         type=str,
         default="",
-        help=f"Comma-separated stages: {','.join(AVAILABLE_STAGES.keys())}",
+        help=f"Comma-separated sigils: {','.join(AVAILABLE_SIGILS.keys())}",
     )
     parser.add_argument(
         "--date-start",
@@ -91,11 +88,11 @@ def main() -> None:
         logger.error("Input path is not a directory: %s", args.input)
         return
 
-    stage_names = [s.strip() for s in args.stages.split(",") if s.strip()]
+    sigil_names = [s.strip() for s in args.sigils.split(",") if s.strip()]
     pipeline = build_pipeline(
         args.input,
         args.output,
-        stage_names,
+        sigil_names,
         date_start=args.date_start,
         date_end=args.date_end,
     )

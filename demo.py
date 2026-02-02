@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demo: show pipeline concepts with synthetic images."""
+"""Demo: pipeline concepts with synthetic images."""
 
 import tempfile
 from pathlib import Path
@@ -8,11 +8,11 @@ from PIL import Image
 
 from observation import Observation
 from pipeline import Pipeline
-from stage import Stage
-from stages import BatchMerge, InputStage, LandscapeOnly
+from sigil import Sigil
+from sigils import Batch, Input, LandscapeOnly
 
 
-class Grayscale(Stage):
+class Grayscale(Sigil):
     """Transform: convert to grayscale."""
 
     def map(self, obs: Observation) -> Observation:
@@ -21,7 +21,7 @@ class Grayscale(Stage):
         return obs
 
 
-class AnnotateSize(Stage):
+class AnnotateSize(Sigil):
     """Transform: record dimensions in metadata."""
 
     def map(self, obs: Observation) -> Observation:
@@ -37,11 +37,9 @@ def create_test_images(directory: Path) -> None:
     colors = ["red", "green", "blue", "yellow", "purple"]
 
     for i, color in enumerate(colors):
-        # Landscape
         img = Image.new("RGB", (200, 100), color=color)
         img.save(directory / f"landscape_{i}.jpg")
 
-        # Portrait
         img = Image.new("RGB", (100, 200), color=color)
         img.save(directory / f"portrait_{i}.jpg")
 
@@ -49,9 +47,9 @@ def create_test_images(directory: Path) -> None:
 
 
 def demo_basic_pipeline():
-    """Demo: input -> annotate -> output."""
+    """Demo: input -> annotate."""
     print("\n=== Basic Pipeline ===")
-    print("InputStage -> AnnotateSize")
+    print("Input -> AnnotateSize")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
@@ -59,7 +57,7 @@ def demo_basic_pipeline():
 
         pipeline = (
             Pipeline()
-            .add(InputStage(root))
+            .add(Input(root))
             .add(AnnotateSize())
         )
 
@@ -68,10 +66,10 @@ def demo_basic_pipeline():
             print(f"    sigils: {obs.sigils}")
 
 
-def demo_filter_pipeline():
-    """Demo: filter contrast (landscape vs portrait)."""
-    print("\n=== Filter (Contrast) Pipeline ===")
-    print("InputStage -> LandscapeOnly -> AnnotateSize")
+def demo_contrast_pipeline():
+    """Demo: contrast (landscape vs portrait)."""
+    print("\n=== Contrast Pipeline ===")
+    print("Input -> LandscapeOnly -> AnnotateSize")
     print("Contrast: landscape passes, portrait rejected")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -80,7 +78,7 @@ def demo_filter_pipeline():
 
         pipeline = (
             Pipeline()
-            .add(InputStage(root))
+            .add(Input(root))
             .add(LandscapeOnly())
             .add(AnnotateSize())
         )
@@ -91,11 +89,11 @@ def demo_filter_pipeline():
             print(f"    {obs.path.name}: {obs.metadata['aspect']}")
 
 
-def demo_batch_pipeline():
-    """Demo: merge stage batching observations."""
-    print("\n=== Batch (Merge) Pipeline ===")
-    print("InputStage -> BatchMerge(n=3)")
-    print("Groups observations into batches")
+def demo_collapse_pipeline():
+    """Demo: collapse (batch observations into groups)."""
+    print("\n=== Collapse Pipeline ===")
+    print("Input -> Batch(n=3)")
+    print("Many observations collapse into groups")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
@@ -103,8 +101,8 @@ def demo_batch_pipeline():
 
         pipeline = (
             Pipeline()
-            .add(InputStage(root))
-            .add(BatchMerge(n=3))
+            .add(Input(root))
+            .add(Batch(n=3))
         )
 
         for i, batch in enumerate(pipeline.run()):
@@ -115,8 +113,8 @@ def demo_batch_pipeline():
 
 def demo_transform_pipeline():
     """Demo: map transformation."""
-    print("\n=== Transform (Map) Pipeline ===")
-    print("InputStage -> Grayscale")
+    print("\n=== Transform Pipeline ===")
+    print("Input -> Grayscale")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
@@ -124,7 +122,7 @@ def demo_transform_pipeline():
 
         pipeline = (
             Pipeline()
-            .add(InputStage(root))
+            .add(Input(root))
             .add(Grayscale())
         )
 
@@ -137,13 +135,13 @@ def demo_transform_pipeline():
 
 if __name__ == "__main__":
     demo_basic_pipeline()
-    demo_filter_pipeline()
-    demo_batch_pipeline()
+    demo_contrast_pipeline()
+    demo_collapse_pipeline()
     demo_transform_pipeline()
 
-    print("\n=== Summary ===")
+    print("\n=== Attention Language ===")
     print("- Observation: what attention focuses on")
-    print("- Stage.filter(): contrast - pass or reject")
-    print("- Stage.map(): transformation")
-    print("- MergeStage: combine streams (batch, concat, interleave)")
-    print("- sigils: marks left by stages the observation passed through")
+    print("- Sigil: pattern + preferences (filter/map)")
+    print("- Contrast: filter - pass or reject")
+    print("- Collapse: many possibilities -> fewer (Batch)")
+    print("- sigils list: marks left by sigils passed through")

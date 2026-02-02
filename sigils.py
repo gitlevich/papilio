@@ -1,4 +1,4 @@
-"""Built-in pipeline stages."""
+"""Built-in sigils."""
 
 import logging
 from collections.abc import Iterator
@@ -10,32 +10,31 @@ from PIL import Image
 from PIL.ExifTags import IFD
 
 from observation import Observation
-from stage import MergeStage, Stage
+from sigil import MergeSigil, Sigil
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", Observation, list[Observation])
 
-# Supported image extensions
 IMAGE_EXTENSIONS = frozenset({
     ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".heif"
 })
 
 
-class InputStage(Stage):
-    """Recursively walk directory, yielding Observations for recognized formats."""
+class Input(Sigil):
+    """Source: generate observations from directory tree."""
 
     def __init__(self, root: Path):
         self.root = root
 
     def scan(self) -> Iterator[Observation]:
-        """Generate Observations from directory tree."""
+        """Walk directory, yield observations for recognized images."""
         for path in sorted(self.root.rglob("*")):
             if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS:
                 yield Observation(path=path)
 
     def process(self, stream: Iterator[Observation]) -> Iterator[Observation]:
-        """InputStage ignores incoming stream, generates from filesystem."""
+        """Ignore incoming stream, generate from filesystem."""
         for _ in stream:
             pass
         for obs in self.scan():
@@ -43,8 +42,8 @@ class InputStage(Stage):
             yield obs
 
 
-class OutputStage(Stage):
-    """Resize to 4K if larger, write to output directory preserving structure."""
+class Output(Sigil):
+    """Sink: resize to 4K if larger, write preserving structure."""
 
     MAX_LONG_EDGE = 3840
 
@@ -84,7 +83,7 @@ class OutputStage(Stage):
         return obs
 
 
-class LandscapeOnly(Stage):
+class LandscapeOnly(Sigil):
     """Contrast: landscape vs portrait. Passes width > height."""
 
     def filter(self, obs: Observation) -> bool:
@@ -96,7 +95,7 @@ class LandscapeOnly(Stage):
             return False
 
 
-class DateFilter(Stage):
+class DateRange(Sigil):
     """Contrast: in-range vs out-of-range by EXIF DateTimeOriginal."""
 
     EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
@@ -106,7 +105,7 @@ class DateFilter(Stage):
         self.end = end
 
     def _get_date_taken(self, obs: Observation) -> datetime | None:
-        """Extract DateTimeOriginal from EXIF data."""
+        """Extract DateTimeOriginal from EXIF."""
         try:
             img = obs.image
             exif = img.getexif()
@@ -142,14 +141,14 @@ class DateFilter(Stage):
         return True
 
 
-class BatchMerge(MergeStage):
-    """Window observations into groups of N."""
+class Batch(MergeSigil):
+    """Collapse: window observations into groups of N."""
 
     def __init__(self, n: int = 10):
         self.n = n
 
     def merge(self, streams: list[Iterator[T]]) -> Iterator[list[Observation]]:
-        """Collect observations from all streams into batches of size n."""
+        """Collect observations into batches of size n."""
         batch: list[Observation] = []
 
         for stream in streams:
@@ -169,16 +168,16 @@ class BatchMerge(MergeStage):
             yield batch
 
 
-class Concat(MergeStage):
-    """Concatenate multiple streams sequentially."""
+class Concat(MergeSigil):
+    """Merge: concatenate streams sequentially."""
 
     def merge(self, streams: list[Iterator[T]]) -> Iterator[T]:
         for stream in streams:
             yield from stream
 
 
-class Interleave(MergeStage):
-    """Interleave observations from multiple streams round-robin."""
+class Interleave(MergeSigil):
+    """Merge: round-robin from multiple streams."""
 
     def merge(self, streams: list[Iterator[T]]) -> Iterator[T]:
         active = list(streams)
