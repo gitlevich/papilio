@@ -3,6 +3,7 @@
 
 import argparse
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import pillow_heif
@@ -10,6 +11,7 @@ import pillow_heif
 from pipeline import Pipeline
 from stages import (
     BatchMerge,
+    DateFilter,
     InputStage,
     LandscapeOnly,
     OutputStage,
@@ -31,14 +33,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def parse_date(value: str) -> datetime:
+    """Parse date string in YYYY-MM-DD format."""
+    return datetime.strptime(value, "%Y-%m-%d")
+
+
 def build_pipeline(
     input_dir: Path,
     output_dir: Path,
     stage_names: list[str],
+    date_start: datetime | None = None,
+    date_end: datetime | None = None,
 ) -> Pipeline:
     """Construct pipeline from stage names."""
     pipeline = Pipeline()
     pipeline.add(InputStage(input_dir))
+
+    # Add date filter if specified
+    if date_start or date_end:
+        pipeline.add(DateFilter(start=date_start, end=date_end))
 
     for name in stage_names:
         if name not in AVAILABLE_STAGES:
@@ -62,6 +75,16 @@ def main() -> None:
         default="",
         help=f"Comma-separated stages: {','.join(AVAILABLE_STAGES.keys())}",
     )
+    parser.add_argument(
+        "--date-start",
+        type=parse_date,
+        help="Filter images taken on or after this date (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--date-end",
+        type=parse_date,
+        help="Filter images taken on or before this date (YYYY-MM-DD)",
+    )
     args = parser.parse_args()
 
     if not args.input.is_dir():
@@ -69,7 +92,13 @@ def main() -> None:
         return
 
     stage_names = [s.strip() for s in args.stages.split(",") if s.strip()]
-    pipeline = build_pipeline(args.input, args.output, stage_names)
+    pipeline = build_pipeline(
+        args.input,
+        args.output,
+        stage_names,
+        date_start=args.date_start,
+        date_end=args.date_end,
+    )
 
     count = 0
     for item in pipeline.run():

@@ -36,12 +36,19 @@ class Pipeline:
                 # MergeStage expects list of streams; wrap single stream
                 stream = stage.merge([stream])
             else:
+                # Use stage's process method (handles filter/map/sigils)
+                # Wrap to handle batches
                 stream = self._process_stage(stage, stream)
 
         yield from stream
 
     def _process_stage(self, stage: Stage, stream: Iterator[T]) -> Iterator[T]:
         """Process a stage, handling both items and batches."""
+        # Check if stage overrides process (like InputStage)
+        if type(stage).process is not Stage.process:
+            yield from stage.process(stream)
+            return
+
         for item in stream:
             if isinstance(item, list):
                 # Batch: apply stage to each item in batch

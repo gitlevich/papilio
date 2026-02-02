@@ -2,10 +2,12 @@
 
 import logging
 from collections.abc import Iterator
+from datetime import datetime
 from pathlib import Path
 from typing import TypeVar
 
 from PIL import Image
+from PIL.ExifTags import IFD
 
 from item import ImageItem
 from stage import MergeStage, Stage
@@ -96,6 +98,54 @@ class LandscapeOnly(Stage):
         except Exception as e:
             logger.warning("Failed to check orientation for %s: %s", item.path, e)
             return False
+
+
+class DateFilter(Stage):
+    """Filter images by EXIF DateTimeOriginal within a date range."""
+
+    EXIF_DATE_FORMAT = "%Y:%m:%d %H:%M:%S"
+
+    def __init__(self, start: datetime | None = None, end: datetime | None = None):
+        self.start = start
+        self.end = end
+
+    def _get_date_taken(self, item: ImageItem) -> datetime | None:
+        """Extract DateTimeOriginal from EXIF data."""
+        try:
+            img = item.image
+            exif = img.getexif()
+            if not exif:
+                return None
+
+            # DateTimeOriginal (36867) is in the nested EXIF IFD
+            exif_ifd = exif.get_ifd(IFD.Exif)
+            date_str = exif_ifd.get(36867) if exif_ifd else None
+
+            if not date_str:
+                # Try DateTime (306) from main EXIF as fallback
+                date_str = exif.get(306)
+            if not date_str:
+                return None
+
+            return datetime.strptime(date_str, self.EXIF_DATE_FORMAT)
+        except Exception as e:
+            logger.warning("Failed to read EXIF date for %s: %s", item.path, e)
+            return None
+
+    def filter(self, item: ImageItem) -> bool:
+        date_taken = self._get_date_taken(item)
+        if date_taken is None:
+            logger.warning("No EXIF date for %s, skipping", item.path)
+            return False
+
+        item.metadata["date_taken"] = date_taken
+
+        if self.start and date_taken < self.start:
+            return False
+        if self.end and date_taken > self.end:
+            return False
+
+        return True
 
 
 class BatchMerge(MergeStage):
