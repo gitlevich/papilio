@@ -1,0 +1,20 @@
+[project]
+name = "photo-pipeline"
+version = "0.1.0"
+description = "Streaming photo ingestion pipeline"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=10.0.0",
+    "pillow-heif>=0.13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+ingest = "ingest:main"
+
+[tool.setuptools]
+py-modules = ["item", "stage", "stages", "pipeline", "ingest"]
