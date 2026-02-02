@@ -78,12 +78,12 @@ def main() -> None:
     parser.add_argument(
         "--date-start",
         type=parse_date,
-        help="Filter images taken on or after this date (YYYY-MM-DD)",
+        help="Pass images taken on or after this date (YYYY-MM-DD)",
     )
     parser.add_argument(
         "--date-end",
         type=parse_date,
-        help="Filter images taken on or before this date (YYYY-MM-DD)",
+        help="Pass images taken on or before this date (YYYY-MM-DD)",
     )
     args = parser.parse_args()
 
@@ -101,10 +101,10 @@ def main() -> None:
     )
 
     count = 0
-    for item in pipeline.run():
-        count += 1 if not isinstance(item, list) else len(item)
+    for obs in pipeline.run():
+        count += 1 if not isinstance(obs, list) else len(obs)
 
-    logger.info("Processed %d items", count)
+    logger.info("Processed %d observations", count)
 
 
 if __name__ == "__main__":

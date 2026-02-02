@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from item import ImageItem
+from observation import Observation
 from pipeline import Branch, Pipeline
 from stage import Stage
 
@@ -13,16 +13,16 @@ class AddTagStage(Stage):
     def __init__(self, tag: str):
         self.tag = tag
 
-    def map(self, item: ImageItem) -> ImageItem:
-        tags = item.metadata.setdefault("tags", [])
+    def map(self, obs: Observation) -> Observation:
+        tags = obs.metadata.setdefault("tags", [])
         tags.append(self.tag)
-        return item
+        return obs
 
 
 class RejectAllStage(Stage):
-    """Stage that rejects all items."""
+    """Stage that rejects all observations."""
 
-    def filter(self, item: ImageItem) -> bool:
+    def filter(self, obs: Observation) -> bool:
         return False
 
 
@@ -34,9 +34,9 @@ def test_empty_pipeline():
 
 def test_single_stage():
     pipeline = Pipeline([AddTagStage("test")])
-    items = [ImageItem(path=Path("/1.jpg"))]
+    observations = [Observation(path=Path("/1.jpg"))]
 
-    results = list(pipeline.run(iter(items)))
+    results = list(pipeline.run(iter(observations)))
 
     assert len(results) == 1
     assert "test" in results[0].metadata["tags"]
@@ -47,8 +47,8 @@ def test_chained_stages():
     pipeline.add(AddTagStage("first"))
     pipeline.add(AddTagStage("second"))
 
-    items = [ImageItem(path=Path("/1.jpg"))]
-    results = list(pipeline.run(iter(items)))
+    observations = [Observation(path=Path("/1.jpg"))]
+    results = list(pipeline.run(iter(observations)))
 
     assert results[0].metadata["tags"] == ["first", "second"]
 
@@ -59,8 +59,8 @@ def test_filter_in_chain():
     pipeline.add(RejectAllStage())
     pipeline.add(AddTagStage("after"))
 
-    items = [ImageItem(path=Path("/1.jpg"))]
-    results = list(pipeline.run(iter(items)))
+    observations = [Observation(path=Path("/1.jpg"))]
+    results = list(pipeline.run(iter(observations)))
 
     assert results == []
 
@@ -79,8 +79,8 @@ def test_fluent_api():
         .add(AddTagStage("c"))
     )
 
-    items = [ImageItem(path=Path("/1.jpg"))]
-    results = list(pipeline.run(iter(items)))
+    observations = [Observation(path=Path("/1.jpg"))]
+    results = list(pipeline.run(iter(observations)))
 
     assert results[0].metadata["tags"] == ["a", "b", "c"]
 
@@ -91,9 +91,9 @@ class TestBranch:
         branch2 = Pipeline([AddTagStage("branch2")])
 
         branch = Branch([branch1, branch2])
-        items = [ImageItem(path=Path("/1.jpg"))]
+        observations = [Observation(path=Path("/1.jpg"))]
 
-        streams = branch.process(iter(items))
+        streams = branch.process(iter(observations))
 
         assert len(streams) == 2
 

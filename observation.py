@@ -1,4 +1,4 @@
-"""ImageItem - the pipeline's unit of work."""
+"""Observation - what attention focuses on as it flows through the pipeline."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -8,13 +8,13 @@ from PIL import Image
 
 
 @dataclass
-class ImageItem:
-    """An image flowing through the pipeline.
+class Observation:
+    """An image under attention.
 
     Attributes:
         path: Original source path
-        metadata: Accumulated annotations from stages
-        sigils: Names of stages this item has passed through
+        metadata: Accumulated annotations from sigils
+        sigils: Marks left by sigils this observation passed through
     """
     path: Path
     metadata: dict[str, Any] = field(default_factory=dict)

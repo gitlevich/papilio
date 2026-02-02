@@ -1,7 +1,7 @@
 [project]
-name = "photo-pipeline"
+name = "papilio"
 version = "0.1.0"
-description = "Streaming photo ingestion pipeline"
+description = "Streaming photo pipeline with sigil-based stages"
 requires-python = ">=3.11"
 dependencies = [
     "pillow>=10.0.0",
@@ -17,4 +17,4 @@ dev = [
 ingest = "ingest:main"
 
 [tool.setuptools]
-py-modules = ["item", "stage", "stages", "pipeline", "ingest"]
+py-modules = ["observation", "stage", "stages", "pipeline", "ingest"]

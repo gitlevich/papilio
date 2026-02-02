@@ -4,7 +4,7 @@
 
 # Papilio
 
-A streaming photo pipeline in Python. Images flow through composable stages that filter and transform.
+A streaming photo pipeline. Observations flow through composable sigils that apply contrasts and transformations.
 
 ## Install
 
@@ -20,24 +20,26 @@ pip install -e .
 # Process all images
 ingest --input ./photos --output ./processed
 
-# Filter to landscape orientation
+# Pass only landscape orientation (width > height)
 ingest --input ./photos --output ./processed --stages landscape
 
-# Filter by EXIF date
+# Pass only images within date range
 ingest --input ./photos --output ./processed --date-start 2025-02-01 --date-end 2025-02-28
 ```
 
 ## Architecture
 
-**Stage** - A sigil naming a concern. Each stage implements:
-- `filter(item) -> bool` — does this item belong?
-- `map(item) -> item` — transform/annotate
+Naming follows the [Attention Language](https://sigilsnotspells.com) framework.
+
+**Observation** - What attention focuses on. An image with path, lazy-loaded data, metadata, and sigil marks.
+
+**Stage (Sigil)** - A pattern plus preferences. Each stage implements:
+- `filter(obs) -> bool` — apply a contrast: does this observation pass?
+- `map(obs) -> obs` — transform the observation
 
 **MergeStage** - Fan-in combining multiple streams (batch, concat, interleave).
 
-**Pipeline** - Composes stages. Items flow through as generators for memory efficiency.
-
-**ImageItem** - The unit of work: path, lazy-loaded image, metadata dict, and sigils tracking provenance.
+**Pipeline** - Composes stages. Observations flow through as generators for memory efficiency.
 
 ## Built-in Stages
 
@@ -45,9 +47,9 @@ ingest --input ./photos --output ./processed --date-start 2025-02-01 --date-end 
 |-------|------|-------------|
 | `InputStage` | Source | Recursively walks directory for images |
 | `OutputStage` | Sink | Resizes to 4K if larger, writes preserving structure |
-| `DateFilter` | Filter | EXIF DateTimeOriginal within date range |
-| `LandscapeOnly` | Filter | Width > height |
-| `BatchMerge` | Merge | Windows items into groups of N |
+| `DateFilter` | Contrast | In-range vs out-of-range by EXIF date |
+| `LandscapeOnly` | Contrast | Landscape vs portrait orientation |
+| `BatchMerge` | Merge | Windows observations into groups of N |
 | `Concat` | Merge | Concatenates streams sequentially |
 | `Interleave` | Merge | Round-robin from multiple streams |
 
@@ -55,12 +57,14 @@ ingest --input ./photos --output ./processed --date-start 2025-02-01 --date-end 
 
 ```python
 from stage import Stage
-from item import ImageItem
+from observation import Observation
 
 class Grayscale(Stage):
-    def map(self, item: ImageItem) -> ImageItem:
-        item.image = item.image.convert("L")
-        return item
+    """Transform: convert to grayscale."""
+
+    def map(self, obs: Observation) -> Observation:
+        obs.image = obs.image.convert("L")
+        return obs
 ```
 
 Register in `ingest.py`:

@@ -4,9 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import TypeVar
 
-from item import ImageItem
+from observation import Observation
 
-T = TypeVar("T", ImageItem, list[ImageItem])
+T = TypeVar("T", Observation, list[Observation])
 
 
 class Stage(ABC):
@@ -21,19 +21,19 @@ class Stage(ABC):
         """Stage name used in sigils list."""
         return self.__class__.__name__
 
-    def filter(self, item: ImageItem) -> bool:
-        """Does this item belong to this stage's world? Default: accept all."""
+    def filter(self, obs: Observation) -> bool:
+        """Apply contrast: does this observation pass? Default: accept all."""
         return True
 
-    def map(self, item: ImageItem) -> ImageItem:
-        """Transform/annotate the item. Default: passthrough."""
-        return item
+    def map(self, obs: Observation) -> Observation:
+        """Transform the observation. Default: passthrough."""
+        return obs
 
-    def process(self, stream: Iterator[ImageItem]) -> Iterator[ImageItem]:
-        """Apply filter then map to stream, tracking sigils."""
-        for item in stream:
-            if self.filter(item):
-                result = self.map(item)
+    def process(self, stream: Iterator[Observation]) -> Iterator[Observation]:
+        """Apply filter then map to stream, marking with sigil."""
+        for obs in stream:
+            if self.filter(obs):
+                result = self.map(obs)
                 result.sigils.append(self.name)
                 yield result
 
